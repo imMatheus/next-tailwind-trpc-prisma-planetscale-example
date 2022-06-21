@@ -1,18 +1,9 @@
 import * as trpc from '@trpc/server'
-import { z } from 'zod'
+import type { AuthenticatedTrpcRouterContextType } from '@/server/utils/context'
+import { testRouter } from './test'
 
-import { prisma } from '@/server/utils/prisma'
-
-export const appRouter = trpc.router().query('hello', {
-	input: z.object({
-		text: z.string()
-	}),
-	resolve: ({ input }) => {
-		return {
-			text: `Hello ${input.text}`
-		}
-	}
-})
+// Merge your api routes here
+export const appRouter = trpc.router<AuthenticatedTrpcRouterContextType>().merge('test.', testRouter)
 
 // export type definition of API
 export type AppRouter = typeof appRouter

@@ -1,38 +1,43 @@
 import '../styles/globals.scss'
 import type { AppProps } from 'next/app'
+import { SessionProvider } from 'next-auth/react'
 
 function MyApp({ Component, pageProps }: AppProps) {
-	return <Component {...pageProps} />
+	return (
+		<SessionProvider session={pageProps.session}>
+			<Component {...pageProps} />
+		</SessionProvider>
+	)
 }
 
 import { withTRPC } from '@trpc/next'
 import type { AppRouter } from '@/server/router'
+import { httpBatchLink } from '@trpc/client/links/httpBatchLink'
+import { loggerLink } from '@trpc/client/links/loggerLink'
 
 function getBaseUrl() {
-	if (process.browser) return ''
-	if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+	if (typeof window) return '' // Browser should use current path
+	if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}` // SSR should use vercel url
 
-	return `https://localhost:${process.env.PORT || 3000}`
+	return `http://localhost:${process.env.PORT ?? 3000}` // dev SSR should use localhost
 }
 
 export default withTRPC<AppRouter>({
-	config({ ctx }) {
-		/**
-		 * If you want to use SSR, you need to use the server's full URL
-		 * @link https://trpc.io/docs/ssr
-		 */
+	config() {
 		const url = `${getBaseUrl()}/api/trpc`
 
 		return {
-			url
-			/**
-			 * @link https://react-query.tanstack.com/reference/QueryClient
-			 */
-			// queryClientConfig: { defaultOptions: { queries: { staleTime: 60 } } },
+			links: [
+				loggerLink({
+					enabled: (opts) =>
+						process.env.NODE_ENV === 'development' ||
+						(opts.direction === 'down' && opts.result instanceof Error)
+				}),
+				httpBatchLink({
+					url
+				})
+			]
 		}
 	},
-	/**
-	 * @link https://trpc.io/docs/ssr
-	 */
-	ssr: false
+	ssr: true
 })(MyApp)
